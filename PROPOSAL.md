@@ -1,0 +1,13 @@
+# Designing Recursive Digital Filters with Neural Networks for Flexible FIR Approximation
+Joel A. Jaffe && Jazer Sibley-Schwartz 2025
+
+## Abstract
+The use of recursive filters to approximate the responses of non-recursive filters is a rich topic in digital filter design. Where possible, the substitution of recursive (IIR) filters for FIR filters typically bestows efficiency gains by means of a filter of lower order. Many techniques have been developed at this aim, traditionally based around deterministic algorithms, and more contemporarily involving non-deterministic iterative approaches with machine learning. This paper proposes an approach using neural networks that takes an arbitrary impulse response as its input, and produces a set of IIR filter coefficients as its output. A system is trained to produce a filter that balances accuracy of approximation with efficiency (filter order) as tuned by input parameters. 
+
+## Background
+One of the major benefits of digital filters is their flexibility. A system that implements a digital filter is typically reprogrammable, making it ideal for adaptive filters and flexible “tuning” by the user. The adjustable parameters are not limited to filter coefficients, but extend to the filter’s entire topology, including its order. Given this flexibility, is can be useful to think of a filter as a “patch” that can be “loaded” given a standard format of exchange. This paradigm can be observed in the field of digital audio effects, in which the broader technical term “impulse response” is used to denote the specific use case of audio recordings in the .WAV format interpreted as a set of FIR filter coefficients for real-time convolution with an audio signal. 
+
+The popularity of “impulse responses” (IRs) in this modality soared in the late 2010s and early 2020s as computing power caught up with their hefty (typically O(n2)) processing load. The use of IRs in this field is not for traditional filtering tasks (spectral alterations), but more commonly the application of IRs from speaker cabinets and the reverberation signatures of rooms and springs. Given the length of these IRs, particularly for reverbs, these operations typically constitute the most intensive computation in a given signal chain.
+
+## Design
+Our design consists of two major components: an offline system for generating IIR filter topologies from an impulse response provided as a `.wav` file, and a standardized format by which real-time systems can exchange and use these topologies. A web-hosted [Python notebook](https://colab.research.google.com/drive/1jvvUkCaEiVgBp3HYy_lhlEEdbZr5T1Lq?usp=sharing) is used as the generator, and a C++ header provides objects for using the notebook’s output in a real-time system.
