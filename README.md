@@ -6,8 +6,8 @@ This repository documents development of **IR-Approx**. For our proposal, see [P
 ```mermaid
 flowchart TD
 
-step1["IR of size $$N_{IR}$$"] 
-step1 --> step2["IIR Kernel of size $$\frac{N_{IR}}{? \gt 1}$$"]
+step1["`IR of size $$N_{IR}$$`"]
+step1 --> step2["`IIR Kernel of size $$\frac{N_{IR}}{? \gt 1}$$`"]
 step2 --> step3["NN Optimization"]
 step3 --> step4["Good 'nuff?"]
 step4 --noo--> no["$$?$$--"] --> step2
