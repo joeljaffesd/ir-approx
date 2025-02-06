@@ -15,64 +15,76 @@ fft_size = 256
 num_poles = 8
 delta = 0.00001
 mu = 0.2
-reals = np.zeros(fft_size - 1)
-imags = np.zeros(fft_size - 1)
+reals = np.zeros(fft_size)
+imags = np.zeros(fft_size)
 target_mags = np.zeros(fft_size // 2) # "//" ensures integer division
 ff_coefs = np.zeros(num_poles)
 fb_coefs = np.zeros(num_poles)
 ff_slopes = np.zeros(num_poles)
 fb_slopes = np.zeros(num_poles)
 
+# Set target mags to lowpass filter with steep cutoff
 def load_target_mags():
-    global target_mags
-    # Create a simple lowpass filter target magnitude response
-    cutoff = fft_size // 8  # Example cutoff frequency
-    target_mags = np.zeros(fft_size // 2)
-    target_mags[:cutoff] = 1  # Passband
-    target_mags[cutoff:] = 0  # Stopband
+  '''
+  GOSUB XXXX
+  '''
+  global target_mags
+  cutoff = fft_size // 4  # Example cutoff frequency
+  target_mags = np.zeros(fft_size // 2)
+  target_mags[:cutoff] = 1  # Passband
+  target_mags[cutoff:] = 0  # Stopband
 
 load_target_mags() # GOSUB XXXX
 
+# init coefs to identity function
+for i in range(num_poles):
+	ff_coefs[i] = 0
+	fb_coefs[i] = 0
+ff_coefs[0] = 1
+
 def calculate_fft(reals, imags, fft_size):
-    # Implement or import the FFT calculation
-    # Example using numpy's FFT
-    fft_result = np.fft.fft(reals + 1j * imags, fft_size)
-    reals[:] = np.real(fft_result)[:fft_size - 1]
-    imags[:] = np.imag(fft_result)[:fft_size - 1]
+  '''
+  GOSUB 1000
+  '''
+
+  # converts data from time to frequency domain
+  fft_result = np.fft.fft(reals + 1j * imags, fft_size)
+  reals[:] = np.real(fft_result)[:fft_size]
+  imags[:] = np.imag(fft_result)[:fft_size]
 
 def calculate_error(ff_coefs, fb_coefs, target_mags):
-  
-  for i in range(fft_size- 1):
-    reals[i] = 0
-    imags[i] = 0
-  imags[12] = 1 # ??
+  '''
+  GOSUB 3000
+  '''
 
-  for i in range(12, fft_size - 1):
+  for i in range(fft_size):
+    reals[i] = 0 # clear all bins
+    imags[i] = 0  # ^
+  imags[12] = 1 # ?? set imags 12 to 1 for some reason
+
+  # looks like fast convolve for bins 12-fft_size
+  for i in range(12, fft_size):
     for j in range(num_poles):
       reals[i] += (ff_coefs[j] * imags[i - j]) + (fb_coefs[j] * reals[i - j])
-  imags[12] = 0 # ??
+  imags[12] = 0 # set imags 12 to 0 for some reason
 
   calculate_fft(reals, imags, fft_size) # GOSUB 1000
 
+  # error calculation section
   error = 0
   for i in range(fft_size // 2):  # Use integer division
     mag = np.sqrt(reals[i] ** 2 + imags[i] ** 2)
     error += (mag - target_mags[i]) ** 2
   error = np.sqrt(error / ((fft_size // 2) + 1))
+
   return error
 
-# init to identity function
-for i in range(num_poles):
-    ff_coefs[i] = 0
-    fb_coefs[i] = 0
-ff_coefs[0] = 1
-
-# Implement the training algorithms from Table 26-5
-def train(ff_coefs, fb_coefs, delta, mu):
-
-  error = calculate_error(ff_coefs, fb_coefs, target_mags)
-  prev_error = error 
-
+def train(ff_coefs, fb_coefs, delta, mu, prev_error):
+  '''
+  GOSUB 2000.
+  Implements the training algorithm from Table 26-5.
+  Returns error after forward pass.
+  '''
   for i in range(num_poles):
     ff_coefs[i] += delta
     error = calculate_error(ff_coefs, fb_coefs, target_mags)
@@ -90,14 +102,34 @@ def train(ff_coefs, fb_coefs, delta, mu):
   
   return calculate_error(ff_coefs, fb_coefs, target_mags)
 
-num_iters = 100 # currently a bottleneck. Need to get GPU acceleration working
-for i in range(num_iters):
-  curr_error = calculate_error(ff_coefs, fb_coefs, target_mags)  # Store the current error
-  new_error = train(ff_coefs, fb_coefs, delta, mu)  # Call train and get the new error
-  if new_error > curr_error: # If the error increased, reduce the step size
-    mu /= 2
+def epochs(mu):
+  '''
+  Recursive training based on when the error stops improving.
+  Trains until error doesn't improve for 100 epochs. 
+  See https://www.dafx.de/paper-archive/2020/proceedings/papers/DAFx2020_paper_52.pdf
+  '''
+  epoch = 0
+  stasis_count = 0
+  curr_error = calculate_error(ff_coefs, fb_coefs, target_mags)  # Init curr_error
+
+  while(stasis_count < 100):  # While the new error is less than the current error
+    epoch += 1  # Increment epoch
+    new_error = train(ff_coefs, fb_coefs, delta, mu, curr_error)  # Call train and get the new error
+    if new_error > curr_error: # If the error increased, reduce the step size
+      mu /= 2
+    if abs(new_error - curr_error) < 1e-6:  # If the improvement is less than a small threshold
+      stasis_count += 1  # Increment the stasis count
+    else:
+      stasis_count = 0  # Otherwise, reset the stasis count
+    curr_error = new_error  # Set the current error to the new error
+
+  print(f'Final error: {curr_error}')  # Print the final error
+  print(f'Epochs: {epoch}')  # Print the number of epochs
 
 def plot_frequency_response(target_mags, trained_mags, title='Frequency Response'):
+  '''
+  Generates a plot to visualize trained filter vs target response
+  '''
   freqs = np.linspace(0, 0.5, len(target_mags))  # Normalized frequency (0 to 0.5)
   plt.plot(freqs, target_mags, 'r--', label='Target')  # Dashed line for target
   plt.plot(freqs, trained_mags, 'b-', label='Trained')  # Solid line for trained
@@ -108,9 +140,12 @@ def plot_frequency_response(target_mags, trained_mags, title='Frequency Response
   plt.grid(True)
   plt.show()
 
+# Train the model
+epochs(mu)
+
 # Calculate the frequency response of the trained model
 calculate_fft(reals, imags, fft_size)
 trained_mags = np.sqrt(reals[:fft_size // 2] ** 2 + imags[:fft_size // 2] ** 2)
 
-# Example usage
+# Plot Results
 plot_frequency_response(target_mags, trained_mags, 'Target vs Trained')
