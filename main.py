@@ -141,6 +141,7 @@ class Trainer:
     plt.ylabel('Magnitude')
     plt.legend()
     plt.grid(True)
+    plt.savefig('results.png')  # Save the plot to a file
     plt.show()
 
   def __call__(self):
