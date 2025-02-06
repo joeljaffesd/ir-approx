@@ -123,7 +123,7 @@ class Trainer:
         stasis_count += 1  # Increment the stasis count
       else:
         stasis_count = 0  # Otherwise, reset the stasis count
-      curr_error = new_error  # Set the current error to the new error
+      curr_error = new_error  # Update curr_error
 
     print(f'Final error: {curr_error}')  # Print the final error
     print(f'Epochs: {epoch}')  # Print the number of epochs
@@ -153,7 +153,24 @@ class Trainer:
     self.epochs() 
 
     # Calculate the frequency response of the trained model and display
-    self.calculate_fft(self.reals, self.imags, self.fft_size)
+    # self.calculate_fft(self.reals, self.imags, self.fft_size)
+
+    impulse = np.zeros(self.fft_size)
+    impulse[0] = 1  # Create an impulse
+
+    # Filter the impulse using the trained coefficients (feedforward first via convolution)
+    filtered_signal = np.convolve(impulse, self.ff_coefs, mode='full')[:self.fft_size]
+
+    # Apply feedback coefficients (directly in a loop)
+    for i in range(1, self.fft_size):
+        for j in range(1, min(self.num_poles, i + 1)):
+            filtered_signal[i] += self.fb_coefs[j] * filtered_signal[i - j]
+
+    # Compute FFT of the filtered impulse response
+    reals = np.zeros(self.fft_size)
+    imags = np.zeros(self.fft_size)
+    self.calculate_fft(filtered_signal, imags, self.fft_size)  # Apply FFT
+
     trained_mags = np.sqrt(self.reals[:self.fft_size // 2] ** 2 + self.imags[:self.fft_size // 2] ** 2)
     self.plot_frequency_response('Target vs Trained')
 
