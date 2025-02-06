@@ -23,24 +23,25 @@ fb_coefs = np.zeros(num_poles)
 ff_slopes = np.zeros(num_poles)
 fb_slopes = np.zeros(num_poles)
 
-# Set target mags to lowpass filter with steep cutoff
+def initCoefs(ff_coefs, fb_coefs, filter_order):
+  '''
+  init coefs to identity function
+  '''
+  for i in range(filter_order):
+    ff_coefs[i] = 0
+    fb_coefs[i] = 0
+  ff_coefs[0] = 1
+
 def load_target_mags():
   '''
-  GOSUB XXXX
+  GOSUB XXXX. 
+  Currently draws a steep lowpass filter ala Figure 26-14a
   '''
   global target_mags
   cutoff = fft_size // 4  # Example cutoff frequency
   target_mags = np.zeros(fft_size // 2)
   target_mags[:cutoff] = 1  # Passband
   target_mags[cutoff:] = 0  # Stopband
-
-load_target_mags() # GOSUB XXXX
-
-# init coefs to identity function
-for i in range(num_poles):
-	ff_coefs[i] = 0
-	fb_coefs[i] = 0
-ff_coefs[0] = 1
 
 def calculate_fft(reals, imags, fft_size):
   '''
@@ -140,12 +141,16 @@ def plot_frequency_response(target_mags, trained_mags, title='Frequency Response
   plt.grid(True)
   plt.show()
 
-# Train the model
-epochs(mu)
+def main():
+  initCoefs(ff_coefs, fb_coefs, num_poles)
+  load_target_mags() # GOSUB XXXX
+  epochs(mu) # Train the model
 
-# Calculate the frequency response of the trained model
-calculate_fft(reals, imags, fft_size)
-trained_mags = np.sqrt(reals[:fft_size // 2] ** 2 + imags[:fft_size // 2] ** 2)
+  # Calculate the frequency response of the trained model
+  calculate_fft(reals, imags, fft_size)
+  trained_mags = np.sqrt(reals[:fft_size // 2] ** 2 + imags[:fft_size // 2] ** 2)
 
-# Plot Results
-plot_frequency_response(target_mags, trained_mags, 'Target vs Trained')
+  # Plot Results
+  plot_frequency_response(target_mags, trained_mags, 'Target vs Trained')
+
+main()
