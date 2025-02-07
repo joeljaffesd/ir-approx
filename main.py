@@ -53,7 +53,7 @@ class Trainer:
     reals[:] = np.real(fft_result)[:fft_size]
     imags[:] = np.imag(fft_result)[:fft_size]
 
-  def calculate_error(self, ff_coefs, fb_coefs, target_mags):
+  def calculate_error(self):
     '''
     GOSUB 3000
     '''
@@ -67,7 +67,7 @@ class Trainer:
     # looks like fast convolve for bins 12-fft_size
     for i in range(12, self.fft_size):
       for j in range(self.num_poles):
-        self.reals[i] += (ff_coefs[j] * self.imags[i - j]) + (fb_coefs[j] * self.reals[i - j])
+        self.reals[i] += (self.ff_coefs[j] * self.imags[i - j]) + (self.fb_coefs[j] * self.reals[i - j])
     self.imags[12] = 0 # set imags[12] to 0 for some reason
 
     self.calculate_fft(self.reals, self.imags, self.fft_size) # GOSUB 1000
@@ -76,7 +76,7 @@ class Trainer:
     error = 0
     for i in range(self.fft_size // 2):  # Use integer division
       mag = np.sqrt(self.reals[i] ** 2 + self.imags[i] ** 2)
-      error += (mag - target_mags[i]) ** 2
+      error += (mag - self.target_mags[i]) ** 2
     error = np.sqrt(error / ((self.fft_size // 2) + 1))
 
     return error
@@ -89,12 +89,12 @@ class Trainer:
     '''
     for i in range(self.num_poles):
       self.ff_coefs[i] += self.delta
-      error = self.calculate_error(self.ff_coefs, self.fb_coefs, self.target_mags)
+      error = self.calculate_error()
       self.ff_slopes[i] = (error - prev_error) / self.delta
       self.ff_coefs[i] -= self.delta
       if i > 0:
         self.fb_coefs[i] += self.delta
-        error = self.calculate_error(self.ff_coefs, self.fb_coefs, self.target_mags)
+        error = self.calculate_error()
         self.fb_slopes[i] = (error - prev_error) / self.delta
         self.fb_coefs[i] -= self.delta
 
@@ -102,7 +102,7 @@ class Trainer:
       self.ff_coefs[i] -= self.mu * self.ff_slopes[i]
       self.fb_coefs[i] -= self.mu * self.fb_slopes[i]
     
-    return self.calculate_error(self.ff_coefs, self.fb_coefs, self.target_mags)
+    return self.calculate_error()
 
   def epochs(self):
     '''
@@ -112,7 +112,7 @@ class Trainer:
     '''
     epoch = 0
     stasis_count = 0
-    curr_error = self.calculate_error(self.ff_coefs, self.fb_coefs, self.target_mags)  # Init curr_error
+    curr_error = self.calculate_error()  # Init curr_error
 
     while(stasis_count < 100):  # While the new error is less than the current error
       epoch += 1  # Increment epoch
@@ -153,11 +153,9 @@ class Trainer:
     self.load_target_mags() 
     self.epochs() 
 
-    # Calculate the frequency response of the trained model and display
-    # self.calculate_fft(self.reals, self.imags, self.fft_size)
-
+    # Create an impulse
     impulse = np.zeros(self.fft_size)
-    impulse[0] = 1  # Create an impulse
+    impulse[0] = 1  
 
     # Filter the impulse using the trained coefficients (feedforward first via convolution)
     filtered_signal = np.convolve(impulse, self.ff_coefs, mode='full')[:self.fft_size]
