@@ -9,17 +9,19 @@ W.I.P. - This is a work in progress.
 
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 # Implements the recursive filter design algorithm from Table 26-4
 class Trainer:
-  def __init__(self, fft_size = 256, num_poles = 8, delta = 0.00001, mu = 0.2):
+  def __init__(self, fft_size=256, num_poles=8, delta=0.0001, mu=0.2, plot=True):
     self.fft_size = fft_size
     self.num_poles = num_poles
     self.delta = delta
     self.mu = mu
+    self.plot = plot
     self.reals = np.zeros(fft_size)
     self.imags = np.zeros(fft_size)
-    self.target_mags = np.zeros(fft_size // 2) # "//" ensures integer division
+    self.target_mags = np.zeros(fft_size // 2)  # "//" ensures integer division
     self.ff_coefs = np.zeros(num_poles)
     self.fb_coefs = np.zeros(num_poles)
     self.ff_slopes = np.zeros(num_poles)
@@ -114,20 +116,27 @@ class Trainer:
     stasis_count = 0
     curr_error = self.calculate_error()  # Init curr_error
 
-    while(stasis_count < 100):  # While the new error is less than the current error
+    start_time = time.time()  # Start timing
+
+    while(stasis_count < 3):  # While the new error is less than the current error
       epoch += 1  # Increment epoch
       new_error = self.forward_pass(curr_error)  # Call train and get the new error
       if new_error > curr_error: # If the error increased, reduce the step size
         self.mu /= 2
-      if abs(new_error - curr_error) < 1e-6:  # If the improvement is less than a small threshold
+      if abs(new_error - curr_error) < self.delta:  # If the improvement is less than a small threshold
         stasis_count += 1  # Increment the stasis count
       else:
         stasis_count = 0  # Otherwise, reset the stasis count
       curr_error = new_error  # Update curr_error
 
-    print(f'Final error: {curr_error}')  # Print the final error
-    print(f'Epochs: {epoch}')  # Print the number of epochs
+    end_time = time.time()  # End timing
+    time_taken = end_time - start_time  # Calculate time taken
 
+    if self.plot:
+      print(f'Final error: {curr_error}')  # Print the final error
+      print(f'Epochs: {epoch}')  # Print the number of epochs
+      print(f'Time taken: {time_taken:.2f} seconds')  # Print the time taken
+    
   def plot_frequency_response(self, title='Frequency Response'):
     '''
     Generates a plot to visualize trained filter vs target response
@@ -141,7 +150,6 @@ class Trainer:
     plt.ylabel('Magnitude')
     plt.legend()
     plt.grid(True)
-    plt.savefig('results.png')  # Save the plot to a file
     plt.show()
 
   def __call__(self):
@@ -171,10 +179,12 @@ class Trainer:
     self.calculate_fft(filtered_signal, imags, self.fft_size)  # Apply FFT
 
     trained_mags = np.sqrt(self.reals[:self.fft_size // 2] ** 2 + self.imags[:self.fft_size // 2] ** 2)
-    self.plot_frequency_response('Target vs Trained')
+    if self.plot:
+      self.plot_frequency_response('Target vs Trained')
 
-def main():
-  my_model = Trainer()
-  my_model()
+if __name__ == "__main__":
+  def main():
+    my_model = Trainer()
+    my_model()
 
-main()
+  main()

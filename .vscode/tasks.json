@@ -2,12 +2,22 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run Python Script",
+      "label": "Run Main Script",
       "type": "shell",
       "command": "python main.py",
       "group": {
-        "kind": "build",
-        "isDefault": true
+      "kind": "build",
+      "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Benchmark Script",
+      "type": "shell",
+      "command": "python benchmark.py",
+      "group": {
+      "kind": "test",
+      "isDefault": false
       },
       "problemMatcher": []
     }
