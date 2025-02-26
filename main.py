@@ -36,15 +36,21 @@ class Trainer:
       self.fb_coefs[i] = 0
     self.ff_coefs[0] = 1
 
-  def load_target_mags(self):
+  def load_target_mags(self, target_mags=None):
     '''
     `GOSUB XXXX`. 
-    Currently draws a steep lowpass filter ala Figure 26-14a
+    Loads target magnitudes. If no target magnitudes are provided, 
+    it draws a steep lowpass filter ala Figure 26-14a.
     '''
-    cutoff = self.fft_size // 4  # Example cutoff frequency
-    self.target_mags = np.zeros(self.fft_size // 2)
-    self.target_mags[:cutoff] = 1  # Passband
-    self.target_mags[cutoff:] = 0  # Stopband
+    if target_mags is not None:
+      if len(target_mags) != self.fft_size // 2:
+        raise ValueError(f"target_mags must be of length {self.fft_size // 2}")
+      self.target_mags = target_mags
+    else:
+      cutoff = self.fft_size // 4  # Example cutoff frequency
+      self.target_mags = np.zeros(self.fft_size // 2)
+      self.target_mags[:cutoff] = 1  # Passband
+      self.target_mags[cutoff:] = 0  # Stopband
 
   def calculate_fft(self, reals, imags, fft_size):
     '''
@@ -152,13 +158,16 @@ class Trainer:
     plt.grid(True)
     plt.show()
 
-  def __call__(self):
+  def __call__(self, target_mags=None):
     '''
     Operator to train until convergence
     '''
     # Train the model
     self.initCoefs()
-    self.load_target_mags() 
+    if target_mags is not None:
+      self.load_target_mags(target_mags)
+    else:
+      self.load_target_mags() 
     self.epochs() 
 
     # Create an impulse

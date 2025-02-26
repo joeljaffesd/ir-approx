@@ -15,7 +15,7 @@ def benchmark_trainer():
     
     end_time = time.time()
     times.append(end_time - start_time)
-    print(f"num_poles: {num_poles}, time taken: {end_time - start_time} seconds")
+    print(f"num_poles: {num_poles}, time taken: {(end_time - start_time):.2f} seconds")
 
   plt.plot(num_poles_list, times, marker='o')
   plt.xlabel('Number of Poles')
