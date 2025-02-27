@@ -13,7 +13,7 @@ import time
 
 # Implements the recursive filter design algorithm from Table 26-4
 class Trainer:
-  def __init__(self, fft_size=256, num_poles=8, delta=0.0001, mu=0.2, plot=True):
+  def __init__(self, fft_size=1024, num_poles=100, delta=0.001, mu=0.05, plot=True):
     self.fft_size = fft_size
     self.num_poles = num_poles
     self.delta = delta
@@ -49,8 +49,8 @@ class Trainer:
     else:
       cutoff = self.fft_size // 4  # Example cutoff frequency
       self.target_mags = np.zeros(self.fft_size // 2)
-      self.target_mags[:cutoff] = 1  # Passband
-      self.target_mags[cutoff:] = 0  # Stopband
+      self.target_mags[:cutoff] = 1.1  # Passband
+      self.target_mags[cutoff:] = 0.1  # Stopband
 
   def calculate_fft(self, reals, imags, fft_size):
     '''
@@ -67,15 +67,13 @@ class Trainer:
     '''
 
     # clear all bins
-    for i in range(self.fft_size):
-      self.reals[i] = 0 
-      self.imags[i] = 0
+    self.reals.fill(0)
+    self.imags.fill(0)
     self.imags[12] = 1 # ?? set imags[12] to 1 for some reason
 
     # looks like fast convolve for bins 12-fft_size
-    for i in range(12, self.fft_size):
-      for j in range(self.num_poles):
-        self.reals[i] += (self.ff_coefs[j] * self.imags[i - j]) + (self.fb_coefs[j] * self.reals[i - j])
+    self.reals[12:self.fft_size] += np.convolve(self.imags[:self.fft_size], self.ff_coefs, mode='same')[12:self.fft_size]
+    self.reals[12:self.fft_size] += np.convolve(self.reals[:self.fft_size], self.fb_coefs, mode='same')[12:self.fft_size]
     self.imags[12] = 0 # set imags[12] to 0 for some reason
 
     self.calculate_fft(self.reals, self.imags, self.fft_size) # GOSUB 1000
@@ -115,7 +113,7 @@ class Trainer:
   def epochs(self):
     '''
     Recursive training based on when the error stops improving.
-    Trains until error doesn't improve for 100 epochs. 
+    Trains until error doesn't improve for 3 epochs. 
     See https://www.dafx.de/paper-archive/2020/proceedings/papers/DAFx2020_paper_52.pdf
     '''
     epoch = 0
@@ -141,7 +139,7 @@ class Trainer:
     if self.plot:
       print(f'Final error: {curr_error}')  # Print the final error
       print(f'Epochs: {epoch}')  # Print the number of epochs
-      print(f'Time taken: {time_taken:.2f} seconds')  # Print the time taken
+      print(f'Training time: {time_taken:.2f} seconds')  # Print the time taken
     
   def plot_frequency_response(self, title='Frequency Response'):
     '''
