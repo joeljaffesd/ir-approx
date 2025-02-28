@@ -3,17 +3,19 @@ Joel A. Jaffe 2025-02-03
 
 This program implements the the recursive filter design from Chapter 26 of 
 The Scientist and Engineer's Guide to Digital Signal Processing by Steven W. Smith, Ph.D.
+https://www.analog.com/media/en/technical-documentation/dsp-book/dsp_book_Ch26.pdf
 
 W.I.P. - This is a work in progress.
 '''
 
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.signal
 import time
 
 # Implements the recursive filter design algorithm from Table 26-4
 class Trainer:
-  def __init__(self, fft_size=1024, num_poles=100, delta=0.001, mu=0.05, plot=True):
+  def __init__(self, fft_size=1024, num_poles=100, delta=0.001, mu=0.02, plot=True):
     self.fft_size = fft_size
     self.num_poles = num_poles
     self.delta = delta
@@ -31,10 +33,10 @@ class Trainer:
     '''
     Init coefs to identity function.
     '''
-    for i in range(self.num_poles):
-      self.ff_coefs[i] = 0
-      self.fb_coefs[i] = 0
+    self.ff_coefs.fill(0)
+    self.fb_coefs.fill(0)
     self.ff_coefs[0] = 1
+    self.fb_coefs[0] = 1
 
   def load_target_mags(self, target_mags=None):
     '''
@@ -71,9 +73,9 @@ class Trainer:
     self.imags.fill(0)
     self.imags[12] = 1 # ?? set imags[12] to 1 for some reason
 
-    # looks like fast convolve for bins 12-fft_size
-    self.reals[12:self.fft_size] += np.convolve(self.imags[:self.fft_size], self.ff_coefs, mode='same')[12:self.fft_size]
-    self.reals[12:self.fft_size] += np.convolve(self.reals[:self.fft_size], self.fb_coefs, mode='same')[12:self.fft_size]
+    # looks like fast convolve
+    self.reals[:self.fft_size] += np.convolve(self.imags[:self.fft_size], self.ff_coefs, mode='same')[:self.fft_size]
+    self.reals[:self.fft_size] += np.convolve(self.reals[:self.fft_size], self.fb_coefs, mode='same')[:self.fft_size]
     self.imags[12] = 0 # set imags[12] to 0 for some reason
 
     self.calculate_fft(self.reals, self.imags, self.fft_size) # GOSUB 1000
@@ -106,7 +108,8 @@ class Trainer:
 
     for i in range(self.num_poles):
       self.ff_coefs[i] -= self.mu * self.ff_slopes[i]
-      self.fb_coefs[i] -= self.mu * self.fb_slopes[i]
+      if i > 0:
+        self.fb_coefs[i] -= self.mu * self.fb_slopes[i]
     
     return self.calculate_error()
 
@@ -152,17 +155,36 @@ class Trainer:
     plt.title(f'{title} Frequency Response')
     plt.xlabel('Normalized Frequency')
     plt.ylabel('Magnitude')
-    plt.legend()
+    legend = plt.legend()
+    legend.set_title(f'num_poles: {self.num_poles}\nfft_size: {self.fft_size}')
     plt.grid(True)
     plt.show()
 
-  def __call__(self, target_mags=None):
+  def print_coefs(self):
+    '''
+    Print the feedforward and feedback coefficients
+    '''
+    print("Feedforward Coefficients (ff_coefs):")
+    print(self.ff_coefs)
+    print("Feedback Coefficients (fb_coefs):")
+    print(self.fb_coefs)
+
+  def apply_filter(self, input_signal):
+    '''
+    Apply the trained filter to an input signal using scipy's lfilter
+    '''
+    filtered_signal = scipy.signal.lfilter(self.ff_coefs, self.fb_coefs, input_signal)
+    return filtered_signal
+
+  def __call__(self, impulse_response=None):
     '''
     Operator to train until convergence
     '''
     # Train the model
     self.initCoefs()
-    if target_mags is not None:
+    if impulse_response is not None:
+      freq_data = np.fft.fft(impulse_response, n=self.fft_size)
+      target_mags = np.abs(freq_data[:self.fft_size // 2])
       self.load_target_mags(target_mags)
     else:
       self.load_target_mags() 
@@ -172,22 +194,16 @@ class Trainer:
     impulse = np.zeros(self.fft_size)
     impulse[0] = 1  
 
-    # Filter the impulse using the trained coefficients (feedforward first via convolution)
-    filtered_signal = np.convolve(impulse, self.ff_coefs, mode='full')[:self.fft_size]
-
-    # Apply feedback coefficients (directly in a loop)
-    for i in range(1, self.fft_size):
-        for j in range(1, min(self.num_poles, i + 1)):
-            filtered_signal[i] += self.fb_coefs[j] * filtered_signal[i - j]
+    # Filter the impulse using the trained coefficients
+    filtered_signal = self.apply_filter(impulse)
 
     # Compute FFT of the filtered impulse response
-    reals = np.zeros(self.fft_size)
-    imags = np.zeros(self.fft_size)
-    self.calculate_fft(filtered_signal, imags, self.fft_size)  # Apply FFT
+    freq_data = np.fft.fft(filtered_signal, n=self.fft_size)
+    trained_mags = np.abs(freq_data[:self.fft_size // 2])
 
-    trained_mags = np.sqrt(self.reals[:self.fft_size // 2] ** 2 + self.imags[:self.fft_size // 2] ** 2)
     if self.plot:
       self.plot_frequency_response('Target vs Trained')
+      self.print_coefs()
 
 if __name__ == "__main__":
   def main():
