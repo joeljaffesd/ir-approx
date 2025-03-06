@@ -25,7 +25,6 @@ class Trainer:
     self.delta = delta
     self.mu = mu
     self.plot = plot
-    self.data = np.zeros(fft_size)
     self.target_mags = np.zeros(fft_size // 2)  # "//" ensures integer division
     self.ff_coefs = np.zeros(self.num_poles)
     self.fb_coefs = np.zeros(self.num_poles)
@@ -75,11 +74,6 @@ class Trainer:
     '''
     GOSUB 3000
     '''
-    # clear all bins
-    self.data.fill(0)
-    self.data[0] = 1 # set data[12] to 1 for some reason
-
-    self.data = self.apply_filter(self.data) # GOSUB 4000
     mags = self.get_mags()
 
     # error calculation section
