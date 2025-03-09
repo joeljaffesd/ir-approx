@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal
 import time
+import textwrap
 
 # Implements the recursive filter design algorithm from Table 26-4
 class Trainer:
@@ -155,6 +156,51 @@ class Trainer:
     print("Feedback Coefficients (fb_coefs):")
     print(self.fb_coefs)
 
+  def write_header_file(self):
+    '''
+    Writes a C++ header file implementing the filter as cascaded biquad sections.
+    '''
+    filename = 'example.h'
+    guard_name = 'IR_APPROX_H'
+    content = textwrap.dedent('''\
+    /**
+    * @brief IIR approximation implemented with cascaded biquad sections                          
+    * @tparam T floating-point type
+    * @tparam N filter order
+    */                                                    
+    template <typename T, unsigned N>                          
+    class IIRApprox {
+    private:
+      T a[N][2], b[N][3], w[N][2];            
+                                      
+    public:                
+      IIRApprox() {
+        for (unsigned i = 0; i < N; ++i) {
+          w[i][0] = 0;
+          w[i][1] = 0;
+        }
+      }
+      ~IIRApprox() {}
+
+      T processSample(const T& x0) {
+        T x = x0;
+        for (unsigned i = 0; i < N; ++i) {
+          T w0 = x - a[i][0] * w[i][0] - a[i][1] * w[i][1];
+          T y0 = b[i][0] * w0 + b[i][1] * w[i][0] + b[i][2] * w[i][1];
+          w[i][1] = w[i][0];
+          w[i][0] = w0;
+          x = y0;
+        }
+        return x;
+      }
+    };
+    ''')
+    with open(filename, "w") as f:
+      f.write(f"#ifndef {guard_name}\n")
+      f.write(f"#define {guard_name}\n\n")
+      f.write(content + "\n")
+      f.write(f"#endif // {guard_name}\n")
+
   def __call__(self, impulse_response=None):
     '''
     Operator to train until convergence
@@ -198,6 +244,7 @@ class Trainer:
     if self.plot:
       self.plot_frequency_response('Target vs Trained')
       self.print_coefs()
+      self.write_header_file()
 
 if __name__ == "__main__":
   def main():
