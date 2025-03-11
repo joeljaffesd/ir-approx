@@ -156,50 +156,56 @@ class Trainer:
     print("Feedback Coefficients (fb_coefs):")
     print(self.fb_coefs)
 
-  def write_header_file(self):
+  def generate_header(self):
     '''
-    Writes a C++ header file implementing the filter as cascaded biquad sections.
+    Generates a C++ header file implementing the filter as cascaded biquad sections.
     '''
-    filename = 'example.h'
+    filename = 'ir-approx.h'
     guard_name = 'IR_APPROX_H'
-    content = textwrap.dedent('''\
+    sos = scipy.signal.tf2sos(self.ff_coefs, self.fb_coefs)
+    num_sections = sos.shape[0]
+    
+    content = textwrap.dedent(f'''\
     /**
-    * @brief IIR approximation implemented with cascaded biquad sections                          
+    * @brief IR approximation implemented with cascaded biquad sections                          
     * @tparam T floating-point type
-    * @tparam N filter order
     */                                                    
-    template <typename T, unsigned N>                          
-    class IIRApprox {
+    template <typename T>                          
+    class IRApprox {{
     private:
-      T a[N][2], b[N][3], w[N][2];            
+      static constexpr unsigned N = {num_sections};
+      T a[N][2] = {{{', '.join([f'{{{s[4]}, {s[5]}}}' for s in sos])}}};
+      T b[N][3] = {{{', '.join([f'{{{s[0]}, {s[1]}, {s[2]}}}' for s in sos])}}};
+      T w[N][2] = {{0}};            
                                       
     public:                
-      IIRApprox() {
-        for (unsigned i = 0; i < N; ++i) {
+      IRApprox() {{
+        for (unsigned i = 0; i < N; ++i) {{
           w[i][0] = 0;
           w[i][1] = 0;
-        }
-      }
-      ~IIRApprox() {}
+        }}
+      }}
+      ~IRApprox() {{}}
 
-      T processSample(const T& x0) {
+      T processSample(const T& x0) {{
         T x = x0;
-        for (unsigned i = 0; i < N; ++i) {
+        for (unsigned i = 0; i < N; ++i) {{
           T w0 = x - a[i][0] * w[i][0] - a[i][1] * w[i][1];
           T y0 = b[i][0] * w0 + b[i][1] * w[i][0] + b[i][2] * w[i][1];
           w[i][1] = w[i][0];
           w[i][0] = w0;
           x = y0;
-        }
+        }}
         return x;
-      }
-    };
+      }}
+    }};
     ''')
     with open(filename, "w") as f:
       f.write(f"#ifndef {guard_name}\n")
       f.write(f"#define {guard_name}\n\n")
       f.write(content + "\n")
       f.write(f"#endif // {guard_name}\n")
+    print(f'Generated "{filename}"')
 
   def __call__(self, impulse_response=None):
     '''
@@ -243,8 +249,7 @@ class Trainer:
        
     if self.plot:
       self.plot_frequency_response('Target vs Trained')
-      self.print_coefs()
-      self.write_header_file()
+      self.generate_header()
 
 if __name__ == "__main__":
   def main():
