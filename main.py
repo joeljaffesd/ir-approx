@@ -78,11 +78,7 @@ class Trainer:
     mags = self.get_mags()
 
     # error calculation section
-    error = 0
-    for i in range(self.fft_size // 2):  # Use integer division
-      error += (self.target_mags[i] - mags[i]) ** 2
-    error = np.sqrt(error / (self.fft_size // 2))
-
+    error = np.sqrt(np.sum((self.target_mags[:self.fft_size // 2] - mags[:self.fft_size // 2]) ** 2) / (self.fft_size // 2))
     return error
 
   def forward_pass(self, prev_error):
