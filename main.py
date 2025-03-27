@@ -1,11 +1,11 @@
 '''
-Joel A. Jaffe 2025-03-01
+Joel A. Jaffe 2025-03-27
 
-This program implements the the recursive filter design from Chapter 26 of 
-The Scientist and Engineer's Guide to Digital Signal Processing by Steven W. Smith, Ph.D.
+The `Trainer` class below implements a recursive filter design algorithm based on one found in 
+Chapter 26 of The Scientist and Engineer's Guide to Digital Signal Processing by Steven W. Smith, Ph.D.
 https://www.analog.com/media/en/technical-documentation/dsp-book/dsp_book_Ch26.pdf
 
-W.I.P. - This is a work in progress.
+See `README.md` for major TODOs
 '''
 
 import numpy as np
